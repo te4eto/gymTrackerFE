@@ -34,7 +34,7 @@ const SessionForm = () => {
   useEffect(() => {
     Promise.all([
       axios.get(`${process.env.REACT_APP_API_URL}/api/exercises`),
-      axios.get(`${process.env.REACT_APP_API_URL}/api/sessions`)
+      axios.get(`https://gymprogtrackerappbe.onrender.com/`)
     ])
       .then(([exRes, sessRes]) => {
         setExercises(exRes.data.data || []);
@@ -122,8 +122,8 @@ const SessionForm = () => {
     }
 
     const request = session
-      ? axios.put(`${process.env.REACT_APP_API_URL}/api/sessions/${session.id}`, payload)
-      : axios.post(`${process.env.REACT_APP_API_URL}/api/sessions`, payload);
+      ? axios.put(`https://gymprogtrackerappbe.onrender.com//${session.id}`, payload)
+      : axios.post(`https://gymprogtrackerappbe.onrender.com/`, payload);
 
     request
       .then(() => {
@@ -135,7 +135,7 @@ const SessionForm = () => {
 
   const deleteSession = () => {
     if (!session || !window.confirm('Delete this workout?')) return;
-    axios.delete(`${process.env.REACT_APP_API_URL}/api/sessions/${session.id}`)
+    axios.delete(`https://gymprogtrackerappbe.onrender.com//${session.id}`)
       .then(() => {
         setMessage('Deleted');
         setTimeout(() => navigate('/'), 1500);
