@@ -19,7 +19,7 @@ const HistoryView = () => {
       .catch(() => {});
 
     // Get all sessions
-    axios.get('${process.env.REACT_APP_API_URL}/api/sessions')
+    axios.get(`${process.env.REACT_APP_API_URL}/api/sessions`)
       .then(res => {
         const sessions = res.data.data || [];
         const exerciseHistory = sessions

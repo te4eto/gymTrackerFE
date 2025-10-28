@@ -16,7 +16,7 @@ const CalendarView = () => {
   const [date, setDate] = useState(new Date());
 
   useEffect(() => {
-    axios.get('${process.env.REACT_APP_API_URL}/api/sessions')
+    axios.get(`${process.env.REACT_APP_API_URL}/api/sessions`)
       .then(res => {
         const sessions = res.data.data || [];
         const calendarEvents = sessions.map(session => ({

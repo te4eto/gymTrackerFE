@@ -33,8 +33,8 @@ const SessionForm = () => {
 
   useEffect(() => {
     Promise.all([
-      axios.get('${process.env.REACT_APP_API_URL}/api/exercises'),
-      axios.get('${process.env.REACT_APP_API_URL}/api/sessions')
+      axios.get(`${process.env.REACT_APP_API_URL}/api/exercises`),
+      axios.get(`${process.env.REACT_APP_API_URL}/api/sessions`)
     ])
       .then(([exRes, sessRes]) => {
         setExercises(exRes.data.data || []);
@@ -71,7 +71,7 @@ const SessionForm = () => {
   const createExercise = async (name) => {
     if (!name.trim()) return;
     try {
-      const res = await axios.post('${process.env.REACT_APP_API_URL}/api/exercises', {
+      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/exercises`, {
         name: name.trim(),
         category: "Custom"
       });
@@ -123,7 +123,7 @@ const SessionForm = () => {
 
     const request = session
       ? axios.put(`${process.env.REACT_APP_API_URL}/api/sessions/${session.id}`, payload)
-      : axios.post('${process.env.REACT_APP_API_URL}/api/sessions', payload);
+      : axios.post(`${process.env.REACT_APP_API_URL}/api/sessions`, payload);
 
     request
       .then(() => {
