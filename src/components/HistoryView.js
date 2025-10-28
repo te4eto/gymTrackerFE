@@ -19,7 +19,7 @@ const HistoryView = () => {
       .catch(() => {});
 
     // Get all sessions
-    axios.get(`https://gymprogtrackerappbe.onrender.com/`)
+    axios.get('https://gymprogtrackerappbe.onrender.com/api/sessions')
       .then(res => {
         const sessions = res.data.data || [];
         const exerciseHistory = sessions

@@ -33,8 +33,8 @@ const SessionForm = () => {
 
   useEffect(() => {
     Promise.all([
-      axios.get(`https://gymprogtrackerappbe.onrender.com/api/exercises`),
-      axios.get(`https://gymprogtrackerappbe.onrender.com/`)
+      axios.get('https://gymprogtrackerappbe.onrender.com/api/exercises'),
+      axios.get('https://gymprogtrackerappbe.onrender.com/api/sessions')
     ])
       .then(([exRes, sessRes]) => {
         setExercises(exRes.data.data || []);
@@ -71,7 +71,7 @@ const SessionForm = () => {
   const createExercise = async (name) => {
     if (!name.trim()) return;
     try {
-      const res = await axios.post(`https://gymprogtrackerappbe.onrender.com/api/exercises`, {
+      const res = await axios.post('https://gymprogtrackerappbe.onrender.com/api/exercises', {
         name: name.trim(),
         category: "Custom"
       });
@@ -122,8 +122,8 @@ const SessionForm = () => {
     }
 
     const request = session
-      ? axios.put(`https://gymprogtrackerappbe.onrender.com/${session.id}`, payload)
-      : axios.post(`https://gymprogtrackerappbe.onrender.com/`, payload);
+      ? axios.put(`https://gymprogtrackerappbe.onrender.com/api/sessions/${session.id}`, payload)
+      : axios.post('https://gymprogtrackerappbe.onrender.com/api/sessions', payload);
 
     request
       .then(() => {
@@ -135,7 +135,7 @@ const SessionForm = () => {
 
   const deleteSession = () => {
     if (!session || !window.confirm('Delete this workout?')) return;
-    axios.delete(`https://gymprogtrackerappbe.onrender.com/${session.id}`)
+    axios.delete(`https://gymprogtrackerappbe.onrender.com/api/sessions/${session.id}`)
       .then(() => {
         setMessage('Deleted');
         setTimeout(() => navigate('/'), 1500);
