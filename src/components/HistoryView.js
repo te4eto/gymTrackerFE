@@ -14,12 +14,12 @@ const HistoryView = () => {
     if (!exerciseId) return;
 
     // Get exercise name
-    axios.get(`http://localhost:8080/api/exercises/${exerciseId}`)
+    axios.get(`${process.env.REACT_APP_API_URL}/api/exercises/${exerciseId}`)
       .then(res => setExercise(res.data.data))
       .catch(() => {});
 
     // Get all sessions
-    axios.get('http://localhost:8080/api/sessions')
+    axios.get('${process.env.REACT_APP_API_URL}/api/sessions')
       .then(res => {
         const sessions = res.data.data || [];
         const exerciseHistory = sessions

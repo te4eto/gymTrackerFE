@@ -33,8 +33,8 @@ const SessionForm = () => {
 
   useEffect(() => {
     Promise.all([
-      axios.get('http://localhost:8080/api/exercises'),
-      axios.get('http://localhost:8080/api/sessions')
+      axios.get('${process.env.REACT_APP_API_URL}/api/exercises'),
+      axios.get('${process.env.REACT_APP_API_URL}/api/sessions')
     ])
       .then(([exRes, sessRes]) => {
         setExercises(exRes.data.data || []);
@@ -71,7 +71,7 @@ const SessionForm = () => {
   const createExercise = async (name) => {
     if (!name.trim()) return;
     try {
-      const res = await axios.post('http://localhost:8080/api/exercises', {
+      const res = await axios.post('${process.env.REACT_APP_API_URL}/api/exercises', {
         name: name.trim(),
         category: "Custom"
       });
@@ -122,8 +122,8 @@ const SessionForm = () => {
     }
 
     const request = session
-      ? axios.put(`http://localhost:8080/api/sessions/${session.id}`, payload)
-      : axios.post('http://localhost:8080/api/sessions', payload);
+      ? axios.put(`${process.env.REACT_APP_API_URL}/api/sessions/${session.id}`, payload)
+      : axios.post('${process.env.REACT_APP_API_URL}/api/sessions', payload);
 
     request
       .then(() => {
@@ -135,7 +135,7 @@ const SessionForm = () => {
 
   const deleteSession = () => {
     if (!session || !window.confirm('Delete this workout?')) return;
-    axios.delete(`http://localhost:8080/api/sessions/${session.id}`)
+    axios.delete(`${process.env.REACT_APP_API_URL}/api/sessions/${session.id}`)
       .then(() => {
         setMessage('Deleted');
         setTimeout(() => navigate('/'), 1500);
