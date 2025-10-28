@@ -14,12 +14,12 @@ const HistoryView = () => {
     if (!exerciseId) return;
 
     // Get exercise name
-    axios.get(`${process.env.REACT_APP_API_URL}/api/exercises/${exerciseId}`)
+    axios.get(`https://gymprogtrackerappbe.onrender.com/api/exercises/${exerciseId}`)
       .then(res => setExercise(res.data.data))
       .catch(() => {});
 
     // Get all sessions
-    axios.get(`${process.env.REACT_APP_API_URL}/api/sessions`)
+    axios.get(`https://gymprogtrackerappbe.onrender.com/`)
       .then(res => {
         const sessions = res.data.data || [];
         const exerciseHistory = sessions
