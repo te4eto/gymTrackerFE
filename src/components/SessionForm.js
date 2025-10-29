@@ -4,16 +4,8 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Button,
-  TextField,
-  Select,
-  MenuItem,
-  InputLabel,
-  Box,
-  Typography,
-  Alert,
-  CircularProgress,
-  IconButton,
+  Button, TextField, Select, MenuItem, InputLabel,
+  Box, Typography, Alert, CircularProgress, IconButton
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
@@ -22,25 +14,11 @@ const SessionForm = () => {
   const { date } = useParams();
   const navigate = useNavigate();
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    getValues,
-  } = useForm({
-    defaultValues: {
-      type: '',
-      exerciseGroups: [],
-    },
+  const { register, control, handleSubmit, reset, setValue, watch } = useForm({
+    defaultValues: { type: '', exerciseGroups: [] },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'exerciseGroups',
-  });
+  const { fields, append, remove } = useFieldArray({ control, name: 'exerciseGroups' });
 
   const [exercises, setExercises] = useState([]);
   const [session, setSession] = useState(null);
@@ -57,7 +35,9 @@ const SessionForm = () => {
     Legs: [],
   };
 
-  // Fetch exercises + existing session
+  // ──────────────────────────────────────────────────────────────
+  // Load data
+  // ──────────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
       axios.get('https://gymprogtrackerappbe.onrender.com/api/exercises'),
@@ -66,121 +46,108 @@ const SessionForm = () => {
       .then(([exRes, sessRes]) => {
         setExercises(exRes.data.data || []);
         const allSessions = sessRes.data.data || [];
-        const existing = allSessions.find((s) => s.date === date);
+        const existing = allSessions.find(s => s.date === date);
 
         if (existing) {
           setSession(existing);
           const grouped = {};
-          existing.sets.forEach((set) => {
-            const exId = set.exerciseId || (set.exercise?.id || null);
-            if (exId) {
-              if (!grouped[exId]) grouped[exId] = { exerciseId: exId, sets: [] };
-              grouped[exId].sets.push({ reps: set.reps, weight: set.weight });
-            }
+
+          // Preserve **exact order** from backend
+          existing.sets.forEach(set => {
+            const exId = set.exerciseId || set.exercise?.id;
+            if (!exId) return;
+            if (!grouped[exId]) grouped[exId] = { exerciseId: exId, sets: [] };
+            grouped[exId].sets.push({ reps: set.reps, weight: set.weight });
           });
-          reset({
-            type: existing.type || '',
-            exerciseGroups: Object.values(grouped).map((g) => ({
-              exerciseId: g.exerciseId,
-              sets: g.sets,
-              newExerciseName: '', // Ensure field exists
-            })),
-          });
+
+          const orderedGroups = Object.values(grouped).map(g => ({
+            exerciseId: g.exerciseId,
+            sets: g.sets,
+            newExerciseName: '',
+          }));
+
+          reset({ type: existing.type || '', exerciseGroups: orderedGroups });
         } else {
           reset({ type: '', exerciseGroups: [] });
         }
         setLoading(false);
       })
-      .catch((err) => {
-        console.error('Error fetching data:', err);
-        setLoading(false);
-      });
+      .catch(() => setLoading(false));
   }, [date, reset]);
 
-  // Create new exercise
+  // ──────────────────────────────────────────────────────────────
+  // Helpers
+  // ──────────────────────────────────────────────────────────────
   const createExercise = async (name) => {
-    if (!name.trim()) return null;
+    if (!name?.trim()) return null;
     try {
       const res = await axios.post('https://gymprogtrackerappbe.onrender.com/api/exercises', {
         name: name.trim(),
         category: 'Custom',
       });
       const newEx = res.data.data;
-      setExercises((prev) => [...prev, newEx]);
+      setExercises(p => [...p, newEx]);
       return newEx;
-    } catch (err) {
+    } catch {
       setMessage('Failed to create exercise');
       return null;
     }
   };
 
-  // Load template
   const loadTemplate = async (type) => {
     if (!type) return;
-    remove(); // Clear current groups
+    remove(); // clear
     const tmpl = templates[type] || [];
+
+    // Append in **exact template order**
     for (const t of tmpl) {
-      let ex = exercises.find((e) => e.name === t.exerciseName);
-      if (!ex) {
-        ex = await createExercise(t.exerciseName);
-      }
+      let ex = exercises.find(e => e.name === t.exerciseName);
+      if (!ex) ex = await createExercise(t.exerciseName);
       if (ex) {
         append({
           exerciseId: ex.id,
-          sets: t.sets,
+          sets: t.sets, // preserve order
           newExerciseName: '',
         });
       }
     }
   };
 
-  // Submit handler
   const onSubmit = async (data) => {
-    const payload = {
-      date,
-      type: data.type || 'Workout',
-      sets: [],
-    };
+    const payload = { date, type: data.type || 'Workout', sets: [] };
 
     for (const group of data.exerciseGroups) {
       let exId = group.exerciseId;
-
-      // Handle new exercise creation
       if (group.newExerciseName?.trim()) {
         const newEx = await createExercise(group.newExerciseName.trim());
         if (newEx) exId = newEx.id;
       }
+      if (!exId) continue;
 
-      if (exId) {
-        group.sets.forEach((s) => {
-          payload.sets.push({
-            reps: Number(s.reps) || 0,
-            weight: Number(s.weight) || 0,
-            exercise: { id: Number(exId) },
-          });
+      group.sets.forEach(s => {
+        payload.sets.push({
+          reps: Number(s.reps) || 0,
+          weight: Number(s.weight) || 0,
+          exercise: { id: Number(exId) },
         });
-      }
+      });
     }
 
-    const request = session
+    const req = session
       ? axios.put(`https://gymprogtrackerappbe.onrender.com/api/sessions/${session.id}`, payload)
       : axios.post('https://gymprogtrackerappbe.onrender.com/api/sessions', payload);
 
-    request
+    req
       .then(() => {
-        setMessage('Workout saved!');
+        setMessage('Saved!');
         setTimeout(() => navigate('/'), 1500);
       })
-      .catch((err) => {
-        setMessage('Error: ' + (err.response?.data?.message || err.message));
-      });
+      .catch(err => setMessage('Error: ' + (err.response?.data?.message || err.message)));
   };
 
-  // Delete session
   const deleteSession = () => {
-    if (!session || !window.confirm('Delete this workout?')) return;
-    axios
-      .delete(`https://gymprogtrackerappbe.onrender.com/api/sessions/${session.id}`)
+    if (!session || !window.confirm('Delete?')) return;
+    axios.delete(`https://gymprogtrackerappbe.onrender.com/api/sessions/${session.id}`)
       .then(() => {
         setMessage('Deleted');
         setTimeout(() => navigate('/'), 1500);
@@ -188,35 +155,20 @@ const SessionForm = () => {
       .catch(() => setMessage('Delete failed'));
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ textAlign: 'center', mt: 10 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return <Box sx={{ textAlign: 'center', mt: 10 }}><CircularProgress /></Box>;
 
   return (
     <Box sx={{ maxWidth: 700, mx: 'auto', p: 2 }}>
       <Typography variant="h5" gutterBottom>
         {session ? 'Edit' : 'New'} Workout on {date}
       </Typography>
+      {message && <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mb: 2 }}>{message}</Alert>}
 
-      {message && (
-        <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      )}
-
-      {/* Workout Type */}
       <InputLabel>Workout Type</InputLabel>
       <Select
         fullWidth
         value={watch('type') || ''}
-        onChange={(e) => {
-          setValue('type', e.target.value);
-          loadTemplate(e.target.value);
-        }}
+        onChange={e => { setValue('type', e.target.value); loadTemplate(e.target.value); }}
         sx={{ mb: 3 }}
       >
         <MenuItem value=""><em>None</em></MenuItem>
@@ -225,42 +177,23 @@ const SessionForm = () => {
         <MenuItem value="Legs">Legs</MenuItem>
       </Select>
 
-      {/* Exercise Groups */}
       {fields.map((field, i) => (
-        <Box
-          key={field.id}
-          sx={{ border: '1px solid #ddd', borderRadius: 2, p: 2, mb: 2, bgcolor: '#fafafa' }}
-        >
+        <Box key={field.id} sx={{ border: '1px solid #ddd', borderRadius: 2, p: 2, mb: 2, bgcolor: '#fafafa' }}>
           <InputLabel>Exercise</InputLabel>
 
-          {/* Exercise Select */}
           <Controller
             control={control}
             name={`exerciseGroups.${i}.exerciseId`}
             render={({ field: cf }) => (
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                <Select
-                  {...cf}
-                  fullWidth
-                  displayEmpty
-                  value={cf.value || ''}
-                  sx={{ flexGrow: 1 }}
-                >
-                  <MenuItem value="" disabled>
-                    <em>Select exercise</em>
-                  </MenuItem>
-                  {exercises.map((ex) => (
-                    <MenuItem key={ex.id} value={ex.id}>
-                      {ex.name}
-                    </MenuItem>
+                <Select {...cf} fullWidth displayEmpty value={cf.value || ''} sx={{ flexGrow: 1 }}>
+                  <MenuItem value="" disabled><em>Select exercise</em></MenuItem>
+                  {exercises.map(ex => (
+                    <MenuItem key={ex.id} value={ex.id}>{ex.name}</MenuItem>
                   ))}
                 </Select>
                 {cf.value && (
-                  <IconButton
-                    size="small"
-                    onClick={() => navigate(`/history/${cf.value}`)}
-                    title="View history"
-                  >
+                  <IconButton size="small" onClick={() => navigate(`/history/${cf.value}`)} title="History">
                     <HistoryIcon />
                   </IconButton>
                 )}
@@ -268,14 +201,12 @@ const SessionForm = () => {
             )}
           />
 
-          {/* Create New Exercise - PER GROUP */}
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
             <TextField
-              fullWidth
-              size="small"
+              fullWidth size="small"
               placeholder="Or type new exercise name..."
               value={watch(`exerciseGroups.${i}.newExerciseName`) || ''}
-              onChange={(e) => setValue(`exerciseGroups.${i}.newExerciseName`, e.target.value)}
+              onChange={e => setValue(`exerciseGroups.${i}.newExerciseName`, e.target.value)}
             />
             <Button
               size="small"
@@ -283,62 +214,43 @@ const SessionForm = () => {
               onClick={async () => {
                 const name = watch(`exerciseGroups.${i}.newExerciseName`)?.trim();
                 if (!name) return;
-
                 const newEx = await createExercise(name);
                 if (newEx) {
                   setValue(`exerciseGroups.${i}.exerciseId`, newEx.id);
-                  setValue(`exerciseGroups.${i}.newExerciseName`, ''); // Clear input
+                  setValue(`exerciseGroups.${i}.newExerciseName`, '');
                 }
               }}
-            >
-              Create
-            </Button>
+            >Create</Button>
           </Box>
 
-          {/* Sets */}
           <ExerciseSets nestIndex={i} control={control} register={register} />
 
-          {/* Remove Exercise */}
           <Button color="error" size="small" onClick={() => remove(i)} sx={{ mt: 1 }}>
             Remove Exercise
           </Button>
         </Box>
       ))}
 
-      {/* Add Exercise Button */}
       <Button
         variant="outlined"
-        onClick={() =>
-          append({
-            exerciseId: '',
-            sets: [{ reps: '', weight: '' }],
-            newExerciseName: '',
-          })
-        }
+        onClick={() => append({ exerciseId: '', sets: [{ reps: '', weight: '' }], newExerciseName: '' })}
         sx={{ mb: 2 }}
-      >
-        + Add Exercise
-      </Button>
+      >+ Add Exercise</Button>
 
-      {/* Action Buttons */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-        <Button type="submit" variant="contained" size="large" onClick={handleSubmit(onSubmit)}>
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Button variant="contained" size="large" onClick={handleSubmit(onSubmit)}>
           {session ? 'Update' : 'Save'} Workout
         </Button>
-        {session && (
-          <Button variant="outlined" color="error" onClick={deleteSession}>
-            Delete Workout
-          </Button>
-        )}
-        <Button variant="text" onClick={() => navigate('/')}>
-          Cancel
-        </Button>
+        {session && <Button variant="outlined" color="error" onClick={deleteSession}>Delete</Button>}
+        <Button variant="text" onClick={() => navigate('/')}>Cancel</Button>
       </Box>
     </Box>
   );
 };
 
-// Sub-component: Exercise Sets
+// ──────────────────────────────────────────────────────────────
+// Exercise Sets Sub-component
+// ──────────────────────────────────────────────────────────────
 const ExerciseSets = ({ nestIndex, control, register }) => {
   const { fields, append, remove } = useFieldArray({
     control,
@@ -355,7 +267,6 @@ const ExerciseSets = ({ nestIndex, control, register }) => {
             type="number"
             size="small"
             sx={{ width: 80 }}
-            defaultValue={set.reps || ''}
           />
           <TextField
             {...register(`exerciseGroups.${nestIndex}.sets.${j}.weight`)}
@@ -364,11 +275,8 @@ const ExerciseSets = ({ nestIndex, control, register }) => {
             size="small"
             step="0.5"
             sx={{ width: 110 }}
-            defaultValue={set.weight || ''}
           />
-          <Button size="small" color="error" onClick={() => remove(j)}>
-            x
-          </Button>
+          <Button size="small" color="error" onClick={() => remove(j)}>x</Button>
         </Box>
       ))}
       <Button size="small" onClick={() => append({ reps: '', weight: '' })}>
