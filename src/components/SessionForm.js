@@ -36,7 +36,7 @@ const SessionForm = () => {
   };
 
   // ──────────────────────────────────────────────────────────────
-  // Load data
+  // Load data – PRESERVE ORDER
   // ──────────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
@@ -50,23 +50,31 @@ const SessionForm = () => {
 
         if (existing) {
           setSession(existing);
-          const grouped = {};
 
-          // Preserve **exact order** from backend
+          // Use Map to preserve insertion order
+          const groupMap = new Map();
+
           existing.sets.forEach(set => {
             const exId = set.exerciseId || set.exercise?.id;
             if (!exId) return;
-            if (!grouped[exId]) grouped[exId] = { exerciseId: exId, sets: [] };
-            grouped[exId].sets.push({ reps: set.reps, weight: set.weight });
+
+            if (!groupMap.has(exId)) {
+              groupMap.set(exId, { exerciseId: exId, sets: [] });
+            }
+            groupMap.get(exId).sets.push({ reps: set.reps, weight: set.weight });
           });
 
-          const orderedGroups = Object.values(grouped).map(g => ({
+          // Convert Map to array in original order
+          const orderedGroups = Array.from(groupMap.values()).map(g => ({
             exerciseId: g.exerciseId,
             sets: g.sets,
             newExerciseName: '',
           }));
 
-          reset({ type: existing.type || '', exerciseGroups: orderedGroups });
+          reset({
+            type: existing.type || '',
+            exerciseGroups: orderedGroups,
+          });
         } else {
           reset({ type: '', exerciseGroups: [] });
         }
@@ -96,17 +104,16 @@ const SessionForm = () => {
 
   const loadTemplate = async (type) => {
     if (!type) return;
-    remove(); // clear
+    remove();
     const tmpl = templates[type] || [];
 
-    // Append in **exact template order**
     for (const t of tmpl) {
       let ex = exercises.find(e => e.name === t.exerciseName);
       if (!ex) ex = await createExercise(t.exerciseName);
       if (ex) {
         append({
           exerciseId: ex.id,
-          sets: t.sets, // preserve order
+          sets: t.sets,
           newExerciseName: '',
         });
       }
@@ -248,9 +255,6 @@ const SessionForm = () => {
   );
 };
 
-// ──────────────────────────────────────────────────────────────
-// Exercise Sets Sub-component
-// ──────────────────────────────────────────────────────────────
 const ExerciseSets = ({ nestIndex, control, register }) => {
   const { fields, append, remove } = useFieldArray({
     control,
