@@ -51,20 +51,16 @@ const SessionForm = () => {
         if (existing) {
           setSession(existing);
 
-          // Use Map to preserve insertion order
           const groupMap = new Map();
-
           existing.sets.forEach(set => {
             const exId = set.exerciseId || set.exercise?.id;
             if (!exId) return;
-
             if (!groupMap.has(exId)) {
               groupMap.set(exId, { exerciseId: exId, sets: [] });
             }
             groupMap.get(exId).sets.push({ reps: set.reps, weight: set.weight });
           });
 
-          // Convert Map to array in original order
           const orderedGroups = Array.from(groupMap.values()).map(g => ({
             exerciseId: g.exerciseId,
             sets: g.sets,
@@ -153,13 +149,26 @@ const SessionForm = () => {
   };
 
   const deleteSession = () => {
-    if (!session || !window.confirm('Delete?')) return;
+    if (!session || !window.confirm('Delete entire workout?')) return;
     axios.delete(`https://gymprogtrackerappbe.onrender.com/api/sessions/${session.id}`)
       .then(() => {
         setMessage('Deleted');
         setTimeout(() => navigate('/'), 1500);
       })
       .catch(() => setMessage('Delete failed'));
+  };
+
+  // ──────────────────────────────────────────────────────────────
+  // DELETE EXERCISE WITH CONFIRMATION
+  // ──────────────────────────────────────────────────────────────
+  const deleteExercise = (index) => {
+    const exerciseName = exercises.find(ex => ex.id === watch(`exerciseGroups.${index}.exerciseId`))?.name
+      || watch(`exerciseGroups.${index}.newExerciseName`)
+      || 'this exercise';
+
+    if (window.confirm(`Are you sure you want to delete "${exerciseName}"?`)) {
+      remove(index);
+    }
   };
 
   if (loading) return <Box sx={{ textAlign: 'center', mt: 10 }}><CircularProgress /></Box>;
@@ -232,7 +241,13 @@ const SessionForm = () => {
 
           <ExerciseSets nestIndex={i} control={control} register={register} />
 
-          <Button color="error" size="small" onClick={() => remove(i)} sx={{ mt: 1 }}>
+          {/* DELETE BUTTON WITH CONFIRM */}
+          <Button
+            color="error"
+            size="small"
+            onClick={() => deleteExercise(i)}
+            sx={{ mt: 1 }}
+          >
             Remove Exercise
           </Button>
         </Box>
@@ -248,13 +263,16 @@ const SessionForm = () => {
         <Button variant="contained" size="large" onClick={handleSubmit(onSubmit)}>
           {session ? 'Update' : 'Save'} Workout
         </Button>
-        {session && <Button variant="outlined" color="error" onClick={deleteSession}>Delete</Button>}
+        {session && <Button variant="outlined" color="error" onClick={deleteSession}>Delete Workout</Button>}
         <Button variant="text" onClick={() => navigate('/')}>Cancel</Button>
       </Box>
     </Box>
   );
 };
 
+// ──────────────────────────────────────────────────────────────
+// Exercise Sets Sub-component
+// ──────────────────────────────────────────────────────────────
 const ExerciseSets = ({ nestIndex, control, register }) => {
   const { fields, append, remove } = useFieldArray({
     control,
