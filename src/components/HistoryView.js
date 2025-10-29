@@ -2,93 +2,221 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Button, Table, TableBody, TableCell, TableHead, TableRow, Paper, TableContainer } from '@mui/material';
+import {
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Paper,
+  TableContainer,
+  Typography,
+  Box,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
 
 const HistoryView = () => {
   const { exerciseId } = useParams();
   const navigate = useNavigate();
+
   const [exercise, setExercise] = useState(null);
   const [historyData, setHistoryData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!exerciseId) return;
+    if (!exerciseId) {
+      setError('No exercise selected.');
+      setLoading(false);
+      return;
+    }
 
-    // Get exercise name
-    axios.get(`https://gymprogtrackerappbe.onrender.com/api/exercises/${exerciseId}`)
-      .then(res => setExercise(res.data.data))
-      .catch(() => {});
+    const fetchData = async () => {
+      setLoading(true);
+      setError('');
 
-    // Get all sessions
-    axios.get('https://gymprogtrackerappbe.onrender.com/api/sessions')
-      .then(res => {
-        const sessions = res.data.data || [];
+      try {
+        // Fetch exercise name
+        const exerciseRes = await axios.get(
+          `https://gymprogtrackerappbe.onrender.com/api/exercises/${exerciseId}`
+        );
+        setExercise(exerciseRes.data.data);
+
+        // Fetch all sessions
+        const sessionsRes = await axios.get(
+          'https://gymprogtrackerappbe.onrender.com/api/sessions'
+        );
+        const sessions = sessionsRes.data.data || [];
+
+        // Filter sessions that include this exercise with valid reps
         const exerciseHistory = sessions
-          .filter(s => s.sets.some(set => set.exerciseId === parseInt(exerciseId)))
-          .map(session => ({
+          .filter((session) =>
+            session.sets?.some(
+              (set) =>
+                (set.exerciseId || set.exercise?.id) == exerciseId && set.reps != null
+            )
+          )
+          .map((session) => ({
             date: session.date,
-            sets: session.sets.filter(set => set.exerciseId === parseInt(exerciseId)).map(set => ({ reps: set.reps, weight: set.weight }))
-          }));
+            sets: session.sets
+              .filter(
+                (set) =>
+                  (set.exerciseId || set.exercise?.id) == exerciseId && set.reps != null
+              )
+              .map((set) => ({
+                reps: set.reps,
+                weight: set.weight ?? 0, // Treat null/undefined as 0
+              }))
+              .sort((a, b) => a.reps - b.reps), // Optional: sort by reps
+          }))
+          .sort((a, b) => b.date.localeCompare(a.date)); // Newest first
+
         setHistoryData(exerciseHistory);
-      })
-      .catch(err => console.error('Error fetching sessions:', err));
+      } catch (err) {
+        console.error('Error fetching history:', err);
+        setError('Failed to load history. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [exerciseId]);
 
+  // Loading state
+  if (loading) {
+    return (
+      <Box sx={{ textAlign: 'center', mt: 10 }}>
+        <CircularProgress />
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          Loading history...
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Box sx={{ maxWidth: 700, mx: 'auto', p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        <Button onClick={() => navigate('/')} variant="outlined">
+          Back to Calendar
+        </Button>
+      </Box>
+    );
+  }
+
   return (
-    <div>
-      <Button onClick={() => navigate('/')} sx={{ mb: 2 }}>Back to Calendar</Button>
-      <h2>History: {exercise?.name || 'Loading...'}</h2>
-      {historyData.length > 0 ? (
-        <TableContainer component={Paper} sx={{ boxShadow: 2, borderRadius: 2, mt: 2 }}>
+    <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
+      {/* Back Button */}
+      <Button onClick={() => navigate('/')} variant="outlined" sx={{ mb: 3 }}>
+        ← Back to Calendar
+      </Button>
+
+      {/* Title */}
+      <Typography variant="h4" gutterBottom>
+        History: <strong>{exercise?.name || 'Unknown Exercise'}</strong>
+      </Typography>
+
+      {/* No Data */}
+      {historyData.length === 0 ? (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          No recorded sets for this exercise yet.
+        </Alert>
+      ) : (
+        /* Table */
+        <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <Table sx={{ minWidth: 650 }} aria-label="exercise history table">
             <TableHead>
-              <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                <TableCell sx={{ fontWeight: 'bold', padding: '12px', width: '150px' }}>Date</TableCell>
-                {Array.from({ length: 5 }).map((_, index) => (
+              <TableRow sx={{ backgroundColor: '#1976d2' }}>
+                <TableCell sx={{ fontWeight: 'bold', color: 'white', width: '150px' }}>
+                  Date
+                </TableCell>
+                {Array.from({ length: 5 }).map((_, i) => (
                   <TableCell
-                    key={index}
+                    key={i}
                     align="center"
-                    sx={{ fontWeight: 'bold', padding: '12px', width: '120px' }}
+                    sx={{
+                      fontWeight: 'bold',
+                      color: 'white',
+                      width: '130px',
+                      borderRight: '1px solid rgba(255,255,255,0.2)',
+                    }}
                   >
-                    Set {index + 1}
+                    Set {i + 1}
                   </TableCell>
                 ))}
               </TableRow>
             </TableHead>
             <TableBody>
-              {historyData.map((session, index) => (
+              {historyData.map((session, rowIndex) => (
                 <TableRow
-                  key={index}
-                  sx={{ '&:nth-of-type(odd)': { backgroundColor: '#f9f9f9' }, '&:hover': { backgroundColor: '#e0e0e0' } }}
+                  key={rowIndex}
+                  sx={{
+                    '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' },
+                    '&:hover': { backgroundColor: '#e3f2fd' },
+                    transition: 'background-color 0.2s',
+                  }}
                 >
-                  <TableCell component="th" scope="row" sx={{ padding: '12px', width: '150px' }}>
-                    {session.date}
+                  <TableCell
+                    component="th"
+                    scope="row"
+                    sx={{
+                      fontWeight: 'medium',
+                      color: '#333',
+                      width: '150px',
+                    }}
+                  >
+                    {new Date(session.date).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
                   </TableCell>
+
+                  {/* Render actual sets */}
                   {session.sets.map((set, setIndex) => (
                     <TableCell
                       key={setIndex}
                       align="center"
-                      sx={{ padding: '8px', borderRight: '1px solid #ddd', width: '120px' }}
+                      sx={{
+                        borderRight: '1px solid #e0e0e0',
+                        width: '130px',
+                        fontFamily: 'monospace',
+                        fontSize: '0.95rem',
+                      }}
                     >
-                      {set.reps && set.weight ? `Set ${setIndex + 1}: ${set.reps} reps @ ${set.weight}kg` : ''}
+                      {set.reps} reps
+                      {set.weight > 0 ? ` @ ${set.weight}kg` : set.weight === 0 ? ' @ BW' : ''}
                     </TableCell>
                   ))}
-                  {/* Fill remaining cells with empty values up to 5 sets */}
+
+                  {/* Fill empty cells */}
                   {Array.from({ length: 5 - session.sets.length }).map((_, fillIndex) => (
                     <TableCell
-                      key={`fill-${fillIndex}`}
+                      key={`empty-${fillIndex}`}
                       align="center"
-                      sx={{ padding: '8px', borderRight: '1px solid #ddd', width: '120px' }}
-                    ></TableCell>
+                      sx={{
+                        borderRight: '1px solid #e0e0e0',
+                        width: '130px',
+                        color: '#aaa',
+                      }}
+                    >
+                      —
+                    </TableCell>
                   ))}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </TableContainer>
-      ) : (
-        <p>No history data yet</p>
       )}
-    </div>
+    </Box>
   );
 };
 
