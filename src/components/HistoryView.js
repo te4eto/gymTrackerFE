@@ -3,8 +3,18 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Button, Table, TableBody, TableCell, TableHead, TableRow,
-  Paper, TableContainer, Typography, Box, CircularProgress, Alert
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Paper,
+  TableContainer,
+  Typography,
+  Box,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 
 const HistoryView = () => {
@@ -12,10 +22,13 @@ const HistoryView = () => {
   const navigate = useNavigate();
 
   const [exercise, setExercise] = useState(null);
-  const [historyData, setHistoryData] = useState([]);
+  const [historyData, setHistoryData] = useState([]); // [{date, sets:[{reps,weight}]}]
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // -----------------------------------------------------------------
+  // Fetch data
+  // -----------------------------------------------------------------
   useEffect(() => {
     if (!exerciseId) {
       setError('Invalid exercise.');
@@ -36,25 +49,28 @@ const HistoryView = () => {
         const sessions = sessRes.data.data || [];
 
         const history = sessions
-          .filter(s => s.sets?.some(set =>
-            (set.exerciseId || set.exercise?.id) == exerciseId && set.reps != null
-          ))
-          .map(s => ({
+          .filter((s) =>
+            s.sets?.some(
+              (set) =>
+                (set.exerciseId || set.exercise?.id) == exerciseId && set.reps != null
+            )
+          )
+          .map((s) => ({
             date: s.date,
             sets: s.sets
-              .filter(set =>
-                (set.exerciseId || set.exercise?.id) == exerciseId && set.reps != null
+              .filter(
+                (set) =>
+                  (set.exerciseId || set.exercise?.id) == exerciseId && set.reps != null
               )
-              .map(set => ({ reps: set.reps, weight: set.weight ?? 0 }))
-              // **Preserve exact order from form**
+              .map((set) => ({ reps: set.reps, weight: set.weight ?? 0 })),
           }))
-          // **Newest first**
+          // newest first – you can reverse if you prefer oldest first
           .sort((a, b) => b.date.localeCompare(a.date));
 
         setHistoryData(history);
       } catch (err) {
-        setError('Failed to load history.');
         console.error(err);
+        setError('Failed to load history.');
       } finally {
         setLoading(false);
       }
@@ -63,11 +79,14 @@ const HistoryView = () => {
     fetch();
   }, [exerciseId]);
 
+  // -----------------------------------------------------------------
+  // UI states
+  // -----------------------------------------------------------------
   if (loading) {
     return (
       <Box sx={{ textAlign: 'center', mt: 10 }}>
         <CircularProgress />
-        <Typography sx={{ mt: 2 }}>Loading...</Typography>
+        <Typography sx={{ mt: 2 }}>Loading…</Typography>
       </Box>
     );
   }
@@ -83,68 +102,129 @@ const HistoryView = () => {
     );
   }
 
-  return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
-      <Button onClick={() => navigate('/')} variant="outlined" sx={{ mb: 3 }}>
-        ← Back
-      </Button>
-
-      <Typography variant="h4" gutterBottom>
-        History: <strong>{exercise?.name || 'Loading...'}</strong>
-      </Typography>
-
-      {historyData.length === 0 ? (
+  // -----------------------------------------------------------------
+  // No data
+  // -----------------------------------------------------------------
+  if (historyData.length === 0) {
+    return (
+      <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
+        <Button onClick={() => navigate('/')} variant="outlined" sx={{ mb: 3 }}>
+          Back
+        </Button>
+        <Typography variant="h4" gutterBottom>
+          History: <strong>{exercise?.name ?? '…'}</strong>
+        </Typography>
         <Alert severity="info" sx={{ mt: 2 }}>
           No sets recorded yet.
         </Alert>
-      ) : (
-        <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 2 }}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: '#1976d2' }}>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
-                {[1, 2, 3, 4, 5].map(i => (
-                  <TableCell key={i} align="center" sx={{ color: 'white', fontWeight: 'bold' }}>
-                    Set {i}
+      </Box>
+    );
+  }
+
+  // -----------------------------------------------------------------
+  // Build transposed table data
+  // -----------------------------------------------------------------
+  // Find the maximum number of sets across all sessions
+  const maxSets = Math.max(...historyData.map((s) => s.sets.length));
+
+  // For each set index (0 … maxSets-1) create a row:
+  //   row[dateIndex] = {reps, weight} or null
+  const transposedRows = Array.from({ length: maxSets }, (_, setIdx) => {
+    const row: (null | { reps: number; weight: number })[] = [];
+    historyData.forEach((session) => {
+      row.push(session.sets[setIdx] ?? null);
+    });
+    return row;
+  });
+
+  // -----------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------
+  return (
+    <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
+      <Button onClick={() => navigate('/')} variant="outlined" sx={{ mb: 3 }}>
+        Back
+      </Button>
+
+      <Typography variant="h4" gutterBottom>
+        History: <strong>{exercise?.name ?? '…'}</strong>
+      </Typography>
+
+      <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 2, overflowX: 'auto' }}>
+        <Table size="small">
+          {/* ---------- Header (dates) ---------- */}
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#1976d2' }}>
+              <TableCell
+                sx={{ color: 'white', fontWeight: 'bold', minWidth: 80, position: 'sticky', left: 0, zIndex: 2, backgroundColor: '#1976d2' }}
+              >
+                Set
+              </TableCell>
+              {historyData.map((session) => (
+                <TableCell
+                  key={session.date}
+                  align="center"
+                  sx={{
+                    color: 'white',
+                    fontWeight: 'bold',
+                    minWidth: 120,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {new Date(session.date).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+
+          {/* ---------- Body (sets) ---------- */}
+          <TableBody>
+            {transposedRows.map((row, setIdx) => (
+              <TableRow
+                key={setIdx}
+                sx={{
+                  '&:nth-of-type(odd)': { bgcolor: '#f8f9fa' },
+                  '&:hover': { bgcolor: '#e3f2fd' },
+                }}
+              >
+                {/* Set label (sticky) */}
+                <TableCell
+                  component="th"
+                  scope="row"
+                  sx={{
+                    fontWeight: 'medium',
+                    position: 'sticky',
+                    left: 0,
+                    bgcolor: 'background.paper',
+                    zIndex: 1,
+                  }}
+                >
+                  Set {setIdx + 1}
+                </TableCell>
+
+                {/* One cell per date */}
+                {row.map((cell, dateIdx) => (
+                  <TableCell
+                    key={dateIdx}
+                    align="center"
+                    sx={{ fontFamily: 'monospace', minWidth: 120 }}
+                  >
+                    {cell
+                      ? `${cell.reps} reps${
+                          cell.weight > 0 ? ` @ ${cell.weight}kg` : cell.weight === 0 ? ' @ BW' : ''
+                        }`
+                      : '—'}
                   </TableCell>
                 ))}
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {historyData.map((session, i) => (
-                <TableRow
-                  key={i}
-                  sx={{
-                    '&:nth-of-type(odd)': { bgcolor: '#f8f9fa' },
-                    '&:hover': { bgcolor: '#e3f2fd' }
-                  }}
-                >
-                  <TableCell sx={{ fontWeight: 'medium' }}>
-                    {new Date(session.date).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </TableCell>
-
-                  {session.sets.map((set, j) => (
-                    <TableCell key={j} align="center" sx={{ fontFamily: 'monospace' }}>
-                      {set.reps} reps
-                      {set.weight > 0 ? ` @ ${set.weight}kg` : set.weight === 0 ? ' @ BW' : ''}
-                    </TableCell>
-                  ))}
-
-                  {Array.from({ length: 5 - session.sets.length }).map((_, k) => (
-                    <TableCell key={`empty-${k}`} align="center" sx={{ color: '#aaa' }}>
-                      —
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 };
