@@ -18,8 +18,16 @@ import {
 } from "@mui/material";
 
 const HistoryView = () => {
-  const { exerciseId } = useParams();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
+
+  const { exerciseId } = useParams();
 
   const [exercise, setExercise] = useState(null);
   const [historyData, setHistoryData] = useState([]); // [{date, sets:[{reps,weight}]}]

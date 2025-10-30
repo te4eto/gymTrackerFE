@@ -22,6 +22,13 @@ const SessionForm = () => {
   const { date } = useParams();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
+
   const { register, control, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: { type: "", exerciseGroups: [] },
   });

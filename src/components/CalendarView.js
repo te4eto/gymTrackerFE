@@ -14,10 +14,22 @@ import {
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import { useNavigate } from "react-router-dom";
+
 
 const localizer = momentLocalizer(moment);
 
 const CalendarView = () => {
+  const navigate = useNavigate();   // <-- ADD
+
+  // ---------- PROTECTED ROUTE ----------
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
+  
   const [events, setEvents] = useState([]);
   const [view, setView] = useState("month");
   const [date, setDate] = useState(new Date());
